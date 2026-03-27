@@ -47,8 +47,8 @@ docker compose --env-file .env.docker run --rm wasm
 ```bash
 cd rhwp-studio
 npm install
-npx vite --host 0.0.0.0 --port 5173
-# 브라우저에서 http://localhost:5173
+npx vite --host 0.0.0.0 --port 7700
+# 브라우저에서 http://localhost:7700
 ```
 
 ## 3. 작업지시자-에이전트 협업 모델
@@ -280,7 +280,7 @@ Model → StyleResolver → Composer → HeightMeasurer → Paginator → Layout
 
 ```bash
 cd rhwp-studio
-npx vite --host 0.0.0.0 --port 5173 &   # Vite dev server
+npx vite --host 0.0.0.0 --port 7700 &   # Vite dev server
 node e2e/text-flow.test.mjs              # 개별 테스트 실행
 ```
 
