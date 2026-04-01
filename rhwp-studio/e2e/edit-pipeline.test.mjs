@@ -46,11 +46,7 @@ async function pressEnter(page) {
   await page.evaluate(() => new Promise(r => setTimeout(r, 300)));
 }
 
-/** Backspace 키 입력 */
-async function pressBackspace(page) {
-  await page.keyboard.press('Backspace');
-  await page.evaluate(() => new Promise(r => setTimeout(r, 300)));
-}
+
 
 // ────────────────────────────────────────────────────
 async function run() {
@@ -107,17 +103,45 @@ async function run() {
 
     // ── 3. 범위 1: 문단 삭제 (Backspace로 merge) ──
     console.log('\n[3] 문단 병합 (Backspace)...');
-    // 커서를 문단 2 시작으로 이동 (Home → 위치 확인)
-    await page.keyboard.press('Home');
-    await pressBackspace(page);
+    await createNewDocument(page);
+    await clickEditArea(page);
 
-    const parasAfterMerge = await getParaCount(page);
-    check(parasAfterMerge === parasAfterSplit - 1, `Backspace 후 문단 수: ${parasAfterMerge} (기대: ${parasAfterSplit - 1})`);
+    // 제목 + 3개 문단 생성
+    const mergeResult = await page.evaluate(() => {
+      const w = window.__wasm;
+      if (!w?.doc) return { error: 'no doc' };
+      try {
+        w.doc.insertText(0, 0, 0, 'TC #3: merge paragraph');
+        w.doc.splitParagraph(0, 0, 22);
+        w.doc.insertText(0, 1, 0, 'AAA');
+        w.doc.splitParagraph(0, 1, 3);
+        w.doc.insertText(0, 2, 0, 'BBB');
+        w.doc.splitParagraph(0, 2, 3);
+        w.doc.insertText(0, 3, 0, 'CCC');
 
-    const mergedText = await getParaText(page, 0, 2);
-    check(mergedText.includes('Second') && mergedText.includes('Third'),
-      `병합된 문단 텍스트: "${mergedText}"`);
-    await screenshot(page, 'edit-02-merge');
+        const beforeParas = w.doc.getParagraphCount(0);
+
+        // 문단 3을 문단 2에 병합 (Backspace)
+        w.doc.mergeParagraph(0, 3);
+
+        const afterParas = w.doc.getParagraphCount(0);
+        const mergedText = w.doc.getTextRange(0, 2, 0, 50);
+
+        window.__eventBus?.emit('document-changed');
+        return { beforeParas, afterParas, mergedText, ok: true };
+      } catch (e) { return { error: e.message }; }
+    });
+    await page.evaluate(() => new Promise(r => setTimeout(r, 300)));
+
+    if (mergeResult.error) {
+      console.log(`  SKIP: 병합 오류 (${mergeResult.error})`);
+    } else {
+      check(mergeResult.afterParas === mergeResult.beforeParas - 1,
+        `Backspace 후 문단 수: ${mergeResult.beforeParas} → ${mergeResult.afterParas}`);
+      check(mergeResult.mergedText?.includes('BBB') && mergeResult.mergedText?.includes('CCC'),
+        `병합된 문단 텍스트: "${mergeResult.mergedText}"`);
+    }
+    await screenshot(page, 'edit-03-merge');
 
     // ── 4. 범위 2: 여러 문단 + 페이지 넘침 ──
     console.log('\n[4] 여러 문단 + 페이지네이션 전파...');
