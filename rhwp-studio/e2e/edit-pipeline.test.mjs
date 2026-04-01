@@ -14,6 +14,7 @@
  * 실행: node e2e/edit-pipeline.test.mjs [--mode=host|headless]
  */
 import { launchBrowser, loadApp, clickEditArea, typeText, screenshot, closeBrowser } from './helpers.mjs';
+import { TestReporter } from './report-generator.mjs';
 
 /** WASM bridge 통해 페이지 수 조회 */
 async function getPageCount(page) {
@@ -58,14 +59,24 @@ async function run() {
 
   let passed = 0;
   let failed = 0;
+  const reporter = new TestReporter('편집 파이프라인 E2E 테스트');
+  let currentTC = '';
+  let lastScreenshot = null;
   const check = (cond, msg) => {
-    if (cond) { passed++; console.log(`  PASS: ${msg}`); }
-    else { failed++; console.error(`  FAIL: ${msg}`); }
+    if (cond) { passed++; console.log(`  PASS: ${msg}`); reporter.pass(currentTC, msg); }
+    else { failed++; console.error(`  FAIL: ${msg}`); reporter.fail(currentTC, msg); }
+  };
+  const snap = async (name) => {
+    await screenshot(page, name);
+    lastScreenshot = name + '.png';
+    // 현재 TC의 마지막 결과에 스크린샷 연결
+    const tcResults = reporter.results.filter(r => r.tc === currentTC);
+    if (tcResults.length > 0) tcResults[tcResults.length - 1].screenshot = lastScreenshot;
   };
 
   try {
     // ── 1. 새 문서 생성 ──
-    console.log('[1] 새 문서 생성...');
+    currentTC = 'TC #1: 새 문서 생성'; console.log('[1] 새 문서 생성...');
     await loadApp(page);
     await createNewDocument(page);
     await clickEditArea(page);
@@ -76,7 +87,7 @@ async function run() {
     check(initParas >= 1, `초기 문단 수: ${initParas}`);
 
     // ── 2. 범위 1: 문단 추가 (Enter) ──
-    console.log('\n[2] 문단 추가 (Enter 키)...');
+    currentTC = 'TC #2: 문단 추가'; console.log('\n[2] 문단 추가 (Enter 키)...');
     await typeText(page, 'TC #2: 문단 추가 (Enter)');
     await pressEnter(page);
     await typeText(page, 'First paragraph');
@@ -99,10 +110,10 @@ async function run() {
 
     const pagesAfterSplit = await getPageCount(page);
     check(pagesAfterSplit === initPages, `Enter 후 페이지 수 불변: ${pagesAfterSplit}`);
-    await screenshot(page, 'edit-01-split');
+    await snap('edit-01-split');
 
     // ── 3. 범위 1: 문단 삭제 (Backspace로 merge) ──
-    console.log('\n[3] 문단 병합 (Backspace)...');
+    currentTC = 'TC #3: 문단 병합'; console.log('\n[3] 문단 병합 (Backspace)...');
     await createNewDocument(page);
     await clickEditArea(page);
 
@@ -141,10 +152,10 @@ async function run() {
       check(mergeResult.mergedText?.includes('BBB') && mergeResult.mergedText?.includes('CCC'),
         `병합된 문단 텍스트: "${mergeResult.mergedText}"`);
     }
-    await screenshot(page, 'edit-03-merge');
+    await snap('edit-03-merge');
 
     // ── 4. 범위 2: 여러 문단 + 페이지 넘침 ──
-    console.log('\n[4] 여러 문단 + 페이지네이션 전파...');
+    currentTC = 'TC #4: pagination'; console.log('\n[4] 여러 문단 + 페이지네이션 전파...');
     await createNewDocument(page);
     await clickEditArea(page);
 
@@ -162,10 +173,10 @@ async function run() {
     const pagesMany = await getPageCount(page);
     check(parasMany >= 50, `50개 문단 생성: ${parasMany}`);
     check(pagesMany >= 2, `50개 문단 후 페이지 수: ${pagesMany} (기대: 2+)`);
-    await screenshot(page, 'edit-04-many-paragraphs');
+    await snap('edit-04-many-paragraphs');
 
     // ── 5. 범위 2: 긴 텍스트 줄바꿈 전파 ──
-    console.log('\n[5] 긴 텍스트 줄바꿈...');
+    currentTC = 'TC #5: line wrap'; console.log('\n[5] 긴 텍스트 줄바꿈...');
     await createNewDocument(page);
     await clickEditArea(page);
 
@@ -178,10 +189,10 @@ async function run() {
     await page.evaluate(() => new Promise(r => setTimeout(r, 500)));
     const pagesAfterLong = await getPageCount(page);
     check(pagesAfterLong >= 1, `긴 텍스트 후 페이지 수: ${pagesAfterLong}`);
-    await screenshot(page, 'edit-05-long-text');
+    await snap('edit-05-long-text');
 
     // ── 6. 표 삽입: 텍스트 → 표 → 텍스트 구조 ──
-    console.log('\n[6] 표 삽입: 텍스트 → 표 → 텍스트...');
+    currentTC = 'TC #6: table insert'; console.log('\n[6] 표 삽입: 텍스트 → 표 → 텍스트...');
     await createNewDocument(page);
     await clickEditArea(page);
 
@@ -267,10 +278,10 @@ async function run() {
       check(svgCheck.ok,
         `SVG 렌더링 (앞=${svgCheck.hasBefore} 셀=${svgCheck.hasCell} 뒤=${svgCheck.hasAfter} 테두리=${svgCheck.hasRect})`);
     }
-    await screenshot(page, 'edit-06-table-insert');
+    await snap('edit-06-table-insert');
 
     // ── 7. Gap 7: 페이지 브레이크 삽입 ──
-    console.log('\n[7] Gap 7: 페이지 브레이크...');
+    currentTC = 'TC #7: page break'; console.log('\n[7] Gap 7: 페이지 브레이크...');
     await createNewDocument(page);
     await clickEditArea(page);
 
@@ -301,10 +312,10 @@ async function run() {
       check(pbResult.paraCount >= 2,
         `페이지 브레이크 후 문단 수: ${pbResult.paraCount}`);
     }
-    await screenshot(page, 'edit-07-page-break');
+    await snap('edit-07-page-break');
 
     // ── 8. Gap 8: vpos cascade 검증 ──
-    console.log('\n[8] Gap 8: vpos cascade...');
+    currentTC = 'TC #8: vpos cascade'; console.log('\n[8] Gap 8: vpos cascade...');
     await createNewDocument(page);
 
     const vposResult = await page.evaluate(() => {
@@ -363,10 +374,10 @@ async function run() {
         console.log(`  문단 1 lineInfo after:  ${JSON.stringify(vposResult.linesAfter[1])}`);
       }
     }
-    await screenshot(page, 'edit-08-vpos-cascade');
+    await snap('edit-08-vpos-cascade');
 
     // ── 9. 문단 분할/병합 연속 안정성 ──
-    console.log('\n[9] 분할/병합 연속 안정성...');
+    currentTC = 'TC #9: stability'; console.log('\n[9] 분할/병합 연속 안정성...');
     await createNewDocument(page);
 
     const stabilityResult = await page.evaluate(() => {
@@ -401,10 +412,10 @@ async function run() {
       check(stabilityResult.pageCount === 1,
         `5회 분할/병합 후 페이지 수: ${stabilityResult.pageCount}`);
     }
-    await screenshot(page, 'edit-09-stability');
+    await snap('edit-09-stability');
 
     // ── 10. 페이지 경계에서 Enter → 페이지 넘침 ──
-    console.log('\n[10] 페이지 경계 Enter...');
+    currentTC = 'TC #10: page boundary enter'; console.log('\n[10] 페이지 경계 Enter...');
     await createNewDocument(page);
 
     const pageBoundaryEnter = await page.evaluate(() => {
@@ -440,10 +451,10 @@ async function run() {
       check(pageBoundaryEnter.pagesAfter >= pageBoundaryEnter.pagesBefore,
         `페이지 경계 Enter: ${pageBoundaryEnter.pagesBefore} → ${pageBoundaryEnter.pagesAfter}`);
     }
-    await screenshot(page, 'edit-10-page-boundary-enter');
+    await snap('edit-10-page-boundary-enter');
 
     // ── 11. 페이지 경계에서 Backspace → 페이지 줄어듦 ──
-    console.log('\n[11] 페이지 경계 Backspace...');
+    currentTC = 'TC #11: page boundary backspace'; console.log('\n[11] 페이지 경계 Backspace...');
     await createNewDocument(page);
 
     const pageBoundaryBS = await page.evaluate(() => {
@@ -480,10 +491,10 @@ async function run() {
       check(pageBoundaryBS.pagesAfter <= pageBoundaryBS.pagesBefore,
         `페이지 경계 Backspace: ${pageBoundaryBS.pagesBefore} → ${pageBoundaryBS.pagesAfter}`);
     }
-    await screenshot(page, 'edit-11-page-boundary-bs');
+    await snap('edit-11-page-boundary-bs');
 
     // ── 12. 표 셀 내 텍스트 입력 → 셀 높이 변경 ──
-    console.log('\n[12] 표 셀 높이 변경...');
+    currentTC = 'TC #12: cell height'; console.log('\n[12] 표 셀 높이 변경...');
     await createNewDocument(page);
     await clickEditArea(page);
 
@@ -536,10 +547,10 @@ async function run() {
       check(cellHeightResult.afterText?.includes('After table'),
         `표 뒤 문단 배치: "${cellHeightResult.afterText}"`);
     }
-    await screenshot(page, 'edit-12-cell-height');
+    await snap('edit-12-cell-height');
 
     // ── 13. 표 셀 내 Enter → 셀 분할 전후 비교 ──
-    console.log('\n[13] 표 셀 내 Enter...');
+    currentTC = 'TC #13: cell split'; console.log('\n[13] 표 셀 내 Enter...');
     await createNewDocument(page);
     await clickEditArea(page);
 
@@ -594,10 +605,10 @@ async function run() {
       check(cellSplitResult.text1 === 'BBB', `분할 후 셀[0,0] 둘째 문단: "${cellSplitResult.text1}"`);
       check(cellSplitResult.ok, `분할 전 표(para=${cellSplitResult.tp1}) + 분할 후 표(para=${cellSplitResult.tp2})`);
     }
-    await screenshot(page, 'edit-13-cell-split');
+    await snap('edit-13-cell-split');
 
     // ── 14. 텍스트 삭제 → 줄 수 감소 → vpos cascade ──
-    console.log('\n[14] 텍스트 삭제 + vpos cascade...');
+    currentTC = 'TC #14: delete vpos'; console.log('\n[14] 텍스트 삭제 + vpos cascade...');
     await createNewDocument(page);
 
     const deleteVposResult = await page.evaluate(() => {
@@ -635,10 +646,10 @@ async function run() {
       check(deleteVposResult.afterText?.includes('After'),
         `후속 문단 텍스트 보존: "${deleteVposResult.afterText}"`);
     }
-    await screenshot(page, 'edit-14-delete-vpos');
+    await snap('edit-14-delete-vpos');
 
     // ── 15. 표 앞에서 Enter → 표 밀림 + 페이지 넘침 ──
-    console.log('\n[15] 표 앞 Enter → 표 밀림...');
+    currentTC = 'TC #15: table push'; console.log('\n[15] 표 앞 Enter → 표 밀림...');
     await createNewDocument(page);
 
     const tablePushResult = await page.evaluate(() => {
@@ -679,10 +690,10 @@ async function run() {
       check(tablePushResult.pagesAfter >= tablePushResult.pagesBefore,
         `표 밀림 후 페이지: ${tablePushResult.pagesBefore} → ${tablePushResult.pagesAfter}`);
     }
-    await screenshot(page, 'edit-15-table-push');
+    await snap('edit-15-table-push');
 
     // ── 16. 이미지 삽입 → 문단 높이 변경 ──
-    console.log('\n[16] 이미지 삽입...');
+    currentTC = 'TC #16: image insert'; console.log('\n[16] 이미지 삽입...');
     await createNewDocument(page);
     await clickEditArea(page);
 
@@ -731,10 +742,10 @@ async function run() {
       check(imgResult.afterText?.includes('After'),
         `이미지 뒤 문단 텍스트 보존: "${imgResult.afterText}"`);
     }
-    await screenshot(page, 'edit-16-image-insert');
+    await snap('edit-16-image-insert');
 
     // ── 17. 글상자 내 텍스트 편집 ──
-    console.log('\n[17] 글상자 내 텍스트 편집...');
+    currentTC = 'TC #17: textbox edit'; console.log('\n[17] 글상자 내 텍스트 편집...');
     await createNewDocument(page);
     await clickEditArea(page);
 
@@ -804,10 +815,10 @@ async function run() {
         `글상자 뒤 문단: "${textboxResult.afterText}"`);
       check(textboxResult.hasHello, `SVG에 글상자 텍스트 렌더링`);
     }
-    await screenshot(page, 'edit-17-textbox');
+    await snap('edit-17-textbox');
 
     // ── 18. HWP 파일 로드 → 편집 → 페이지 수 일관성 ──
-    console.log('\n[18] 파일 로드 + 편집 일관성...');
+    currentTC = 'TC #18: file edit'; console.log('\n[18] 파일 로드 + 편집 일관성...');
 
     // 새 문서로 복귀하여 WASM API로 테스트
     await createNewDocument(page);
@@ -851,10 +862,10 @@ async function run() {
       check(Math.abs(fileEditResult.pagesAfter - fileEditResult.pagesBefore) <= 1,
         `페이지 수 안정: ${fileEditResult.pagesBefore} → ${fileEditResult.pagesAfter}`);
     }
-    await screenshot(page, 'edit-18-file-edit');
+    await snap('edit-18-file-edit');
 
     // ── 19. 대량 편집(100회 Enter) 안정성 ──
-    console.log('\n[19] 대량 편집 안정성...');
+    currentTC = 'TC #19: mass edit'; console.log('\n[19] 대량 편집 안정성...');
     await createNewDocument(page);
 
     const massEditResult = await page.evaluate(() => {
@@ -897,17 +908,21 @@ async function run() {
       check(massEditResult.pageCount >= 1,
         `대량 편집 후 페이지 수: ${massEditResult.pageCount}`);
     }
-    await screenshot(page, 'edit-19-mass-edit');
+    await snap('edit-19-mass-edit');
 
     // ── 결과 요약 ──
     console.log(`\n=== 결과: ${passed} passed, ${failed} failed ===`);
     if (failed > 0) process.exitCode = 1;
 
+    // HTML 보고서 생성
+    reporter.generate('../output/e2e/report.html');
+
   } catch (err) {
     console.error('테스트 오류:', err.message);
+    reporter.fail('ERROR', err.message);
     process.exitCode = 1;
   } finally {
-    await screenshot(page, 'edit-final');
+    await snap('edit-final');
     await page.close();
     await closeBrowser(browser);
   }

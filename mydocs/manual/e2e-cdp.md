@@ -188,6 +188,7 @@ TC #N: 테스트명
 
 | TC | 제목 | 검증 내용 |
 |----|------|----------|
+| #1 | 새 문서 생성 | 초기 페이지/문단 수 확인 |
 | #2 | 문단 추가 (Enter) | Enter로 3개 문단 생성, 텍스트 정합, 페이지 수 불변 |
 | #3 | merge paragraph | Backspace로 문단 병합, 텍스트 결합 확인 |
 | #4 | pagination | 50개 문단 생성 → 페이지 넘침 (2페이지+) |
@@ -196,6 +197,16 @@ TC #N: 테스트명
 | #7 | page break | 페이지 브레이크 삽입 → 페이지 수 증가 |
 | #8 | vpos cascade | 문단 높이 변경 → 후속 문단 위치 전파 |
 | #9 | stability | 분할/병합 5회 반복 후 텍스트/문단 수 보존 |
+| #10 | page boundary enter | 페이지 경계에서 Enter → 페이지 넘침 |
+| #11 | page boundary backspace | 페이지 경계에서 Backspace → 페이지 줄어듦 |
+| #12 | cell height | 셀[0,0] 짧은 텍스트 + 셀[1,1] 긴 텍스트 → 행 높이 변경 |
+| #13 | cell split | 분할 전 표 → 분할 후 표 비교 (셀 내 Enter) |
+| #14 | delete vpos | 텍스트 삭제 → 줄 수 감소 → vpos cascade |
+| #15 | table push | 표 앞에서 Enter → 표 밀림 + 페이지 넘침 |
+| #16 | image insert | 이미지 삽입 → 문단 높이 변경, 렌더링 확인 |
+| #17 | textbox edit | 글상자 삽입 + 내부 텍스트 편집 + 앞/뒤 문단 배치 |
+| #18 | file edit | 문서 편집 후 문단 수/텍스트/페이지 일관성 |
+| #19 | mass edit | 100회 Enter → 대량 편집 안정성 |
 
 ### 3.3 헬퍼 함수 (helpers.mjs)
 
@@ -320,7 +331,61 @@ await screenshot(page, 'edit-NN-name');
 
 ---
 
-## 6. 트러블슈팅
+## 6. HTML 테스트 보고서
+
+테스트 실행이 완료되면 `output/e2e/report.html`에 HTML 보고서가 자동 생성된다.
+
+### 6.1 보고서 내용
+
+- **요약 대시보드**: Total / Passed / Failed / Skipped 카운트
+- **TC별 카드**: 각 테스트 케이스의 assertion 결과 + 스크린샷
+- **스크린샷 인라인**: base64로 인코딩되어 별도 파일 없이 단일 HTML로 확인 가능
+
+### 6.2 보고서 확인
+
+```bash
+# 테스트 실행 (보고서 자동 생성)
+cd rhwp-studio
+node e2e/edit-pipeline.test.mjs --mode=host
+
+# 보고서 열기 (Windows)
+explorer.exe "$(wslpath -w ../output/e2e/report.html)"
+
+# 또는 브라우저에서 직접 열기
+# file:///C:/Users/<사용자>/mygithub/rhwp/output/e2e/report.html
+```
+
+### 6.3 보고서 구조
+
+```
+output/e2e/
+  report.html          ← HTML 보고서 (스크린샷 인라인 포함)
+
+rhwp-studio/e2e/
+  screenshots/         ← 개별 스크린샷 PNG 파일
+    edit-01-split.png
+    edit-03-merge.png
+    ...
+    edit-final.png
+```
+
+### 6.4 커스텀 보고서 생성
+
+`report-generator.mjs`의 `TestReporter` 클래스를 사용하여 다른 테스트에서도 보고서를 생성할 수 있다:
+
+```javascript
+import { TestReporter } from './report-generator.mjs';
+
+const reporter = new TestReporter('나의 테스트');
+reporter.pass('TC #1', '텍스트 삽입 성공');
+reporter.fail('TC #2', '페이지 수 불일치');
+reporter.skip('TC #3', 'API 미지원');
+reporter.generate('../output/e2e/my-report.html');
+```
+
+---
+
+## 7. 트러블슈팅
 
 ### CDP 연결 실패
 
