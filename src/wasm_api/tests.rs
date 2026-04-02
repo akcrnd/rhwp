@@ -15528,6 +15528,20 @@
         assert_eq!(t4, 3 + 1, "logical 4 → text 4 (X, 표 뒤 첫 텍스트)");
         assert_eq!(t7, 6, "logical 7 → text 6 (끝)");
 
+        // ── 핵심 검증: charOffset > text_len으로 직접 삽입 ──
+        // 새 문서에서 "가나다" + [표] 구조 생성, charOffset=4로 삽입
+        doc.split_paragraph_native(0, 1, 6).unwrap(); // pi=2 생성
+        doc.insert_text_native(0, 2, 0, "가나다").unwrap();
+        doc.create_table_ex_native(0, 2, 3, 1, 1, true, Some(&[5000])).unwrap();
+        let para2 = &doc.document.sections[0].paragraphs[2];
+        let tl = para2.text.chars().count();
+        eprintln!("  pi=2: text='{}' len={} controls={}", para2.text, tl, para2.controls.len());
+        // charOffset=4 (> text_len=3) → 표 뒤에 삽입
+        doc.insert_text_native(0, 2, 4, "라마바").unwrap();
+        let para2 = &doc.document.sections[0].paragraphs[2];
+        eprintln!("  charOffset=4 삽입 후: '{}'", para2.text);
+        assert_eq!(para2.text, "가나다라마바", "표 뒤에 '라마바' 삽입, 실제: '{}'", para2.text);
+
         eprintln!("  논리적 오프셋 테스트 통과 ✓");
     }
 

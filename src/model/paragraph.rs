@@ -211,20 +211,36 @@ impl Paragraph {
     ///
     /// char_offset은 Rust 문자(char) 인덱스이다 (바이트 인덱스가 아님).
     /// 삽입 후 char_offsets, char_shapes, line_segs, char_count가 자동 갱신된다.
+    ///
+    /// char_offset이 text.chars().count()를 초과하면 인라인 컨트롤 뒤의
+    /// 위치로 간주하여 올바른 UTF-16 위치에 삽입한다.
     pub fn insert_text_at(&mut self, char_offset: usize, new_text: &str) {
         if new_text.is_empty() {
             return;
         }
 
         let text_chars: Vec<char> = self.text.chars().collect();
-        let char_offset = char_offset.min(text_chars.len());
+        let text_len = text_chars.len();
+
+        // char_offset > text_len: 인라인 컨트롤 뒤의 위치
+        // navigable_text_len이 text_len보다 클 수 있음 (인라인 컨트롤 포함)
+        // 이 경우 char_offset을 text_len으로 clamp하되, UTF-16 위치는
+        // 마지막 문자 + 후행 컨트롤 갭을 포함한 값으로 계산
+        let effective_char_offset = char_offset.min(text_len);
 
         // 바이트 삽입 위치 계산
-        let byte_offset: usize = text_chars[..char_offset].iter().map(|c| c.len_utf8()).sum();
+        let byte_offset: usize = text_chars[..effective_char_offset].iter().map(|c| c.len_utf8()).sum();
 
         // 삽입 지점의 UTF-16 위치 결정
-        let utf16_insert_pos: u32 = if char_offset < self.char_offsets.len() {
-            self.char_offsets[char_offset]
+        let utf16_insert_pos: u32 = if char_offset > text_len && !self.char_offsets.is_empty() {
+            // 텍스트 끝 이후 (인라인 컨트롤 뒤): 마지막 문자의 UTF-16 위치 + 폭 + 후행 갭
+            let last_idx = self.char_offsets.len() - 1;
+            let last_char_end = self.char_offsets[last_idx] + Self::char_utf16_len(text_chars[last_idx]);
+            // 후행 컨트롤 수 = char_offset - text_len
+            let trailing_ctrl_count = (char_offset - text_len) as u32;
+            last_char_end + trailing_ctrl_count * 8
+        } else if effective_char_offset < self.char_offsets.len() {
+            self.char_offsets[effective_char_offset]
         } else if !self.char_offsets.is_empty() {
             let last_idx = self.char_offsets.len() - 1;
             self.char_offsets[last_idx] + Self::char_utf16_len(text_chars[last_idx])
@@ -232,6 +248,7 @@ impl Paragraph {
             // 텍스트가 비어있을 때: 기존 컨트롤 뒤에 삽입 (각 컨트롤 = 8 code units)
             (self.controls.len() as u32) * 8
         };
+        let char_offset = effective_char_offset;
 
         // 새 텍스트의 UTF-16 총 길이
         let new_chars: Vec<char> = new_text.chars().collect();
