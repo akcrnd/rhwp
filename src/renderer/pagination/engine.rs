@@ -1216,7 +1216,13 @@ impl Paginator {
             0.0
         };
 
-        let remaining_on_page = table_available_height - st.current_height - host_text_height;
+        // vertical_offset: 레이아웃에서 표 위에 v_offset만큼 공간을 확보하므로 가용 높이 차감
+        let v_offset_px = if vertical_offset > 0 {
+            crate::renderer::hwpunit_to_px(vertical_offset as i32, self.dpi)
+        } else {
+            0.0
+        };
+        let remaining_on_page = table_available_height - st.current_height - host_text_height - v_offset_px;
 
         let first_row_h = if row_count > 0 { mt.row_heights[0] } else { 0.0 };
         let can_intra_split_early = !mt.cells.is_empty();
@@ -1292,10 +1298,16 @@ impl Paginator {
             } else {
                 0.0
             };
+            // 첫 분할: v_offset만큼 표가 아래로 밀리므로 가용 높이 차감
+            let v_extra = if !is_continuation && cursor_row == 0 && content_offset == 0.0 {
+                v_offset_px
+            } else {
+                0.0
+            };
             let page_avail = if is_continuation {
                 base_available_height
             } else {
-                (table_available_height - st.current_height - caption_extra - host_extra).max(0.0)
+                (table_available_height - st.current_height - caption_extra - host_extra - v_extra).max(0.0)
             };
 
             let header_overhead = if is_continuation && mt.repeat_header && mt.has_header_cells && row_count > 1 {
