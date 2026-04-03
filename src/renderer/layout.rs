@@ -402,7 +402,7 @@ impl LayoutEngine {
         let hide_header = page_content.page_hide.as_ref()
             .map(|ph| ph.hide_header).unwrap_or(false);
         if !hide_header {
-            self.build_header(&mut tree, page_content, header_paragraphs, composed, styles, layout);
+            self.build_header(&mut tree, page_content, header_paragraphs, composed, styles, layout, bin_data_content);
         }
 
         // 본문 영역 노드
@@ -445,7 +445,7 @@ impl LayoutEngine {
         let hide_footer = page_content.page_hide.as_ref()
             .map(|ph| ph.hide_footer).unwrap_or(false);
         let mut footer_node = if !hide_footer {
-            self.build_footer(&mut tree, page_content, footer_paragraphs, composed, styles, layout)
+            self.build_footer(&mut tree, page_content, footer_paragraphs, composed, styles, layout, bin_data_content)
         } else {
             let fid = tree.next_id();
             RenderNode::new(fid, RenderNodeType::Footer, layout_rect_to_bbox(&layout.footer_area))
@@ -467,6 +467,7 @@ impl LayoutEngine {
         area: &LayoutRect,
         page_index: u32,
         page_number: u32,
+        bin_data_content: &[BinDataContent],
     ) {
         let mut y_offset = area.y;
         for (i, para) in hf_paragraphs.iter().enumerate() {
@@ -482,7 +483,7 @@ impl LayoutEngine {
                             .unwrap_or(Alignment::Left);
                         y_offset = self.layout_table(
                             tree, area_node, t,
-                            0, styles, area, y_offset, &[],
+                            0, styles, area, y_offset, bin_data_content,
                             None, 0,
                             Some((i, ci)), alignment,
                             None, 0.0, 0.0, None, None, None,
@@ -789,6 +790,7 @@ impl LayoutEngine {
         composed: &[ComposedParagraph],
         styles: &ResolvedStyleSet,
         layout: &PageLayoutInfo,
+        bin_data_content: &[BinDataContent],
     ) {
         self.current_page_number.set(page_content.page_number);
         let header_id = tree.next_id();
@@ -811,6 +813,7 @@ impl LayoutEngine {
                                 &layout.header_area,
                                 page_content.page_index,
                                 page_content.page_number,
+                                bin_data_content,
                             );
                         }
                     }
@@ -861,6 +864,7 @@ impl LayoutEngine {
         composed: &[ComposedParagraph],
         styles: &ResolvedStyleSet,
         layout: &PageLayoutInfo,
+        bin_data_content: &[BinDataContent],
     ) -> RenderNode {
         self.current_page_number.set(page_content.page_number);
         let footer_id = tree.next_id();
@@ -883,6 +887,7 @@ impl LayoutEngine {
                                 &layout.footer_area,
                                 page_content.page_index,
                                 page_content.page_number,
+                                bin_data_content,
                             );
                         }
                     }
