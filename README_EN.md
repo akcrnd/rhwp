@@ -226,6 +226,12 @@ mydocs/eng/                    # English translations (724 files)
 
 ## Built with AI Pair Programming
 
+> **This is not vibe coding.** There is no "just accept what AI gives you." Every plan is reviewed. Every output is verified. Every decision has a human behind it.
+
+Vibe coding — hitting accept without reading, letting AI make architectural decisions, shipping code you don't understand — is a trap. It produces code that *looks* right but breaks in ways you can't diagnose, because you never understood it in the first place.
+
+This project takes the opposite approach. A human **task director** maintains full ownership of direction, quality, and architectural decisions, while AI handles implementation at a speed and scale that would be impossible alone. The key difference: **the human never stops thinking.**
+
 This project is developed using **[Claude Code](https://claude.ai/code)** (Anthropic's AI coding CLI) as a pair programming partner. The entire development process is transparently documented — not just the code, but the *thinking process* behind it.
 
 ### How It Works
@@ -277,6 +283,20 @@ Most AI coding demos show simple tasks. This project demonstrates AI pair progra
 - **Full CI/CD pipeline** — from commit to npm publish to GitHub Pages
 
 The `mydocs/` directory is not documentation about the code — it's documentation about **how to build software with AI**. It's an open-source methodology.
+
+### Vibe Coding vs. Directed AI Development
+
+| | Vibe Coding | This Project |
+|--|-------------|-------------|
+| **Human role** | Accept AI output | Direct, review, decide |
+| **Planning** | None — "just build it" | Written plan → approval → execution |
+| **Quality gate** | Hope it works | 783 tests + Clippy + CI + code review |
+| **Debugging** | Ask AI to fix AI's bugs | Human diagnoses, AI implements fix |
+| **Architecture** | Emergent (accidental) | Deliberate (CQRS, dependency direction) |
+| **Documentation** | None | 724 files of process records |
+| **Outcome** | Fragile, hard to maintain | Production-grade, 100K+ lines |
+
+The difference is not the AI — it's the discipline. AI is a force multiplier, but it multiplies whatever process you have. No process × AI = fast chaos. Good process × AI = extraordinary output.
 
 ## Architecture
 
