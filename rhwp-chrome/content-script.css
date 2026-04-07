@@ -1,0 +1,28 @@
+/* rhwp Content Script - HWP 링크 배지 스타일 */
+
+.rhwp-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  margin-left: 4px;
+  border-radius: 3px;
+  background: #2563eb;
+  color: #fff;
+  font-size: 9px;
+  font-weight: 700;
+  font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+  cursor: pointer;
+  vertical-align: middle;
+  line-height: 1;
+  transition: background 0.15s;
+}
+
+.rhwp-badge::after {
+  content: 'H';
+}
+
+.rhwp-badge:hover {
+  background: #1d4ed8;
+}
