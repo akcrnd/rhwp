@@ -20,6 +20,11 @@ RUN npm ci
 WORKDIR /app
 COPY --from=wasm-builder /app/pkg /app/pkg
 COPY rhwp-studio /app/rhwp-studio
+COPY web/fonts /app/web/fonts
+
+RUN rm -f /app/rhwp-studio/public/fonts \
+    && mkdir -p /app/rhwp-studio/public/fonts \
+    && cp -r /app/web/fonts/. /app/rhwp-studio/public/fonts/
 
 WORKDIR /app/rhwp-studio
 RUN npm run build
